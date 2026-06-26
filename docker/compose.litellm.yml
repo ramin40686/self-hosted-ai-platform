@@ -1,0 +1,32 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main
+    container_name: litellm
+
+    entrypoint: []
+
+    command:
+      - litellm
+      - --config
+      - /app/config.yaml
+      - --port
+      - "4000"
+
+    ports:
+      - "4000:4000"
+
+    volumes:
+      - /home/ramin/ai-platform/litellm/config/config.yaml:/app/config.yaml:ro
+
+    restart: unless-stopped
+    env_file:
+      - .env
+      
+    depends_on:
+      vllm-qwen15:
+        condition: service_healthy
+      vllm-qwen7b:
+        condition: service_healthy
+
+    networks:
+      - ai-platform

@@ -1,0 +1,93 @@
+services:
+
+  vllm-qwen15:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-qwen15
+
+    restart: unless-stopped
+
+    gpus:
+      - driver: nvidia
+        device_ids: ["0"]
+        capabilities: [gpu]
+
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "0"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+
+    volumes:
+      - /home/ramin/ai-platform/models/vllm:/models
+
+    command: >
+      --model /models/Qwen2.5-1.5B-Instruct
+      --served-model-name Qwen2.5-1.5B-Instruct
+      --host 0.0.0.0
+      --port 8000
+      --tensor-parallel-size 1
+      --gpu-memory-utilization 0.80
+
+    expose:
+      - "8000"
+
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:8000/v1/models"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+    networks:
+      - ai-platform
+
+  vllm-qwen7b:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-qwen7b
+
+    restart: unless-stopped
+
+    gpus:
+      - driver: nvidia
+        device_ids: ["1"]
+        capabilities: [gpu]
+
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "1"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+
+    volumes:
+      - /home/ramin/ai-platform/models/vllm:/models
+
+    command: >
+      --model /models/Qwen2.5-7B-Instruct
+      --served-model-name Qwen2.5-7B-Instruct
+      --host 0.0.0.0
+      --port 8000
+      --tensor-parallel-size 1
+      --gpu-memory-utilization 0.92
+
+    expose:
+      - "8000"
+
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:8000/v1/models"]
+      interval: 15s
+      timeout: 5s
+      retries: 60
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+    networks:
+      - ai-platform
+
+networks:
+  ai-platform:
+    name: ai-platform

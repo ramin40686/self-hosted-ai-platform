@@ -1,0 +1,17 @@
+model_list:
+
+  - model_name: qwen15
+    litellm_params:
+      model: openai/Qwen2.5-1.5B-Instruct
+      api_base: http://vllm-qwen15:8000/v1
+      api_key: dummy
+
+  - model_name: qwen7b
+    litellm_params:
+      model: openai/Qwen2.5-7B-Instruct
+      api_base: http://vllm-qwen7b:8000/v1
+      api_key: dummy
+
+general_settings:
+  master_key: os.environ/OPENAI_API_KEY
+  telemetry: false
