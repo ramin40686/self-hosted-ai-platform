@@ -1,9 +1,8 @@
 services:
 
-  vllm-qwen15:
+  vllm-qwen3-8b:
     image: vllm/vllm-openai:latest
-    container_name: vllm-qwen15
-
+    container_name: vllm-qwen3-8b
     restart: unless-stopped
 
     gpus:
@@ -16,15 +15,15 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
 
     volumes:
-      - /home/ramin/ai-platform/models/vllm:/models
+      - /home/ramin/ai-platform/models/chat:/models
 
     command: >
-      --model /models/Qwen2.5-1.5B-Instruct
-      --served-model-name Qwen2.5-1.5B-Instruct
+      --model /models/Qwen3-8B
+      --served-model-name Qwen3-8B
       --host 0.0.0.0
       --port 8000
       --tensor-parallel-size 1
-      --gpu-memory-utilization 0.80
+      --gpu-memory-utilization 0.92
 
     expose:
       - "8000"
@@ -33,7 +32,7 @@ services:
       test: ["CMD","curl","-f","http://localhost:8000/v1/models"]
       interval: 15s
       timeout: 5s
-      retries: 30
+      retries: 60
 
     logging:
       driver: json-file
@@ -44,10 +43,10 @@ services:
     networks:
       - ai-platform
 
-  vllm-qwen7b:
-    image: vllm/vllm-openai:latest
-    container_name: vllm-qwen7b
 
+  vllm-qwen2-5-7b-instruct:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-qwen2-5-7b-instruct
     restart: unless-stopped
 
     gpus:
@@ -60,7 +59,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
 
     volumes:
-      - /home/ramin/ai-platform/models/vllm:/models
+      - /home/ramin/ai-platform/models/chat:/models
 
     command: >
       --model /models/Qwen2.5-7B-Instruct
@@ -87,6 +86,7 @@ services:
 
     networks:
       - ai-platform
+
 
 networks:
   ai-platform:

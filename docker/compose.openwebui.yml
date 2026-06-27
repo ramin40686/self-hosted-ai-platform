@@ -23,4 +23,4 @@ services:
 
 networks:
   ai-platform:
-    external: true
+    name: ai-platform

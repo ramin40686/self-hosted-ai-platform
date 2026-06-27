@@ -303,6 +303,12 @@ docker logs -f vllm-qwen7b
 - Gemma
 
 ---
+#Current Features
+
+✅ Automatic Model Registry
+✅ Automatic Compose Generation
+✅ Automatic LiteLLM Configuration
+✅ Multi GPU Scheduling
 
 # Roadmap
 
@@ -311,6 +317,10 @@ docker logs -f vllm-qwen7b
 - [x] LiteLLM
 - [x] Open WebUI
 - [x] Multiple LLMs
+- [x] Automatic Model Registry
+- [x] Automatic Compose Generation 
+- [x] Automatic LiteLLM Configuration
+- [x] Multi GPU Scheduling
 - [ ] Embedding Server
 - [ ] Reranker
 - [ ] RAG Pipeline

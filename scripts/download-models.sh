@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -u
 
 CONFIG="/home/ramin/ai-platform/config/models.conf"
 BASE="/home/ramin/ai-platform/models"
+
+DOWNLOADED=0
+SKIPPED=0
+FAILED=0
 
 echo
 echo "==========================================="
@@ -25,20 +29,21 @@ do
 
     mkdir -p "$TARGET"
 
-    #===========================================
-    # Skip if already downloaded
-    #===========================================
-    if [ -f "$TARGET/config.json" ]; then
+    if [[ -f "$TARGET/config.json" ]]; then
         echo "✓ Already downloaded."
+        ((SKIPPED++))
         continue
     fi
 
-    #===========================================
-    # Download model
-    #===========================================
-    hf download \
-        "$MODEL" \
-        --local-dir "$TARGET"
+    if hf download "$MODEL" --local-dir "$TARGET"; then
+        echo "✓ Downloaded."
+        ((DOWNLOADED++))
+    else
+        echo "✗ Failed."
+        ((FAILED++))
+        rm -rf "$TARGET"
+        continue
+    fi
 
 done < "$CONFIG"
 
@@ -46,6 +51,12 @@ echo
 echo "==========================================="
 echo "Finished : $(date)"
 echo "==========================================="
+echo
 
-du -sh "$BASE"/*
+echo "Downloaded : $DOWNLOADED"
+echo "Skipped    : $SKIPPED"
+echo "Failed     : $FAILED"
 
+echo
+echo "Disk usage:"
+du -sh "$BASE"/* 2>/dev/null

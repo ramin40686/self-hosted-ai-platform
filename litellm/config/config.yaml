@@ -1,16 +1,18 @@
 model_list:
 
-  - model_name: qwen15
+  - model_name: qwen3-8b
     litellm_params:
-      model: openai/Qwen2.5-1.5B-Instruct
-      api_base: http://vllm-qwen15:8000/v1
+      model: openai/Qwen3-8B
+      api_base: http://vllm-qwen3-8b:8000/v1
       api_key: dummy
 
-  - model_name: qwen7b
+
+  - model_name: qwen2-5-7b-instruct
     litellm_params:
       model: openai/Qwen2.5-7B-Instruct
-      api_base: http://vllm-qwen7b:8000/v1
+      api_base: http://vllm-qwen2-5-7b-instruct:8000/v1
       api_key: dummy
+
 
 general_settings:
   master_key: os.environ/OPENAI_API_KEY

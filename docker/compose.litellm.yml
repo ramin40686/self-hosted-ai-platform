@@ -22,11 +22,15 @@ services:
     env_file:
       - .env
       
-    depends_on:
-      vllm-qwen15:
-        condition: service_healthy
-      vllm-qwen7b:
-        condition: service_healthy
+    #depends_on:
+     # vllm-qwen15:
+      #  condition: service_healthy
+      #vllm-qwen7b:
+       # condition: service_healthy
 
     networks:
       - ai-platform
+           
+networks:
+  ai-platform:
+    name: ai-platform
