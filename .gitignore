@@ -61,3 +61,13 @@ uploads/
 
 # Hugging Face cache
 .huggingface/
+
+# ===========================
+# Generated reports
+reports/
+# ===========================
+
+# ===========================
+# Generated model statistics
+config/model-stats.conf
+# ===========================
