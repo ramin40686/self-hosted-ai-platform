@@ -1,14 +1,45 @@
 #!/usr/bin/env bash
-
 set -Eeuo pipefail
 
 ROOT="/home/ramin/ai-platform"
-CONFIG="$ROOT/config/enabled-models.conf"
+
+CONFIG_FILE="$ROOT/config/enabled-models.conf"
+OUTPUT_DIR="$ROOT/docker"
+LITELLM_CONFIG="$ROOT/litellm/config/config.yaml"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --config)
+            [[ $# -ge 2 ]] || { echo "Missing value for --config"; exit 1; }
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        --output-dir)
+            [[ $# -ge 2 ]] || { echo "Missing value for --output-dir"; exit 1; }
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+
+        --litellm-config)
+            [[ $# -ge 2 ]] || { echo "Missing value for --litellm-config"; exit 1; }
+            LITELLM_CONFIG="$2"        
+            shift 2        
+            ;;
+
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+mkdir -p "$OUTPUT_DIR"
+mkdir -p "$(dirname "$LITELLM_CONFIG")"
 MODELS_DIR="$ROOT/models"
 
-# Added variables (مرحله ۱)
-AUTO_COMPOSE="$ROOT/docker/compose.inference.yml"
-AUTO_LITELLM="$ROOT/litellm/config/config.yaml"
+# Added variables
+AUTO_COMPOSE="$OUTPUT_DIR/compose.inference.yml"
+#AUTO_LITELLM="$ROOT/litellm/config/config.yaml"
 
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.92}"
 
@@ -20,10 +51,12 @@ GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.92}"
 GPU_LIST=(0 1)
 
 # ظرفیت هر GPU (GB)
+declare -A GPU_TOTAL_VRAM
 GPU_TOTAL_VRAM[0]=24
 GPU_TOTAL_VRAM[1]=24
 
 # VRAM مصرف‌شده
+declare -A GPU_USED_VRAM
 GPU_USED_VRAM[0]=0
 GPU_USED_VRAM[1]=0
 
@@ -78,21 +111,21 @@ echo " AI Platform - Model Registry"
 echo "=============================================="
 printf "${NC}\n"
 
-if [[ ! -f "$CONFIG" ]]; then
-    echo -e "${RED}ERROR:${NC} $CONFIG not found."
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo -e "${RED}ERROR:${NC} $CONFIG_FILE not found."
     exit 1
 fi
 
 # Remove previous outputs if any (تغییر ۴)
 rm -f "$AUTO_COMPOSE"
-rm -f "$AUTO_LITELLM"
+rm -f "$LITELLM_CONFIG"
 
 # We'll create the files after scheduling; but create headers now
 cat > "$AUTO_COMPOSE" <<EOF
 services:
 EOF
 
-cat > "$AUTO_LITELLM" <<EOF
+cat > "$LITELLM_CONFIG" <<EOF
 model_list:
 EOF
 
@@ -213,7 +246,7 @@ do
     printf "%-12s %-45s %-10s %-8s %-8s %-10s %-10s %-10s\n" \
         "$TYPE" "$MODEL_NAME" "$STATE" "$PRIORITY" "$TP" "$DEVICE" "$VRAM" "$STATUS"
 
-done < <(sort -s -t'|' -k4,4n "$CONFIG")
+done < <(sort -s -t'|' -k4,4n "$CONFIG_FILE")
 
 # After scheduling, generate compose and LiteLLM entries from SCHEDULED_MODELS
 for entry in "${SCHEDULED_MODELS[@]}"
@@ -268,7 +301,7 @@ do
 
 EOF
 
-    cat >> "$AUTO_LITELLM" <<EOF
+    cat >> "$LITELLM_CONFIG" <<EOF
 
   - model_name: $SERVICE_NAME
     litellm_params:
@@ -289,7 +322,7 @@ networks:
 EOF
 
 # Append general settings to LiteLLM
-cat >> "$AUTO_LITELLM" <<EOF
+cat >> "$LITELLM_CONFIG" <<EOF
 
 general_settings:
   master_key: os.environ/OPENAI_API_KEY
@@ -322,9 +355,16 @@ echo "Commit 4 completed."
 echo "Compose file generated."
 echo "LiteLLM config generated."
 
+#copy files to tmp folder
+if [[ "$OUTPUT_DIR" != "$ROOT/docker" ]]; then
+    cp "$ROOT/docker/compose.litellm.yml" "$OUTPUT_DIR/"
+    cp "$ROOT/docker/compose.openwebui.yml" "$OUTPUT_DIR/"
+    cp "$ROOT/docker/.env" "$OUTPUT_DIR/"
+fi
+
 # Print generated file paths
 echo
 echo "Generated:"
 echo "  $AUTO_COMPOSE"
-echo "  $AUTO_LITELLM"
+echo "  $LITELLM_CONFIG"
 
