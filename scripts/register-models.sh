@@ -5,7 +5,7 @@ ROOT="/home/ramin/ai-platform"
 
 CONFIG_FILE="$ROOT/config/enabled-models.conf"
 OUTPUT_DIR="$ROOT/docker"
-LITELLM_CONFIG="$ROOT/litellm/config/config.yaml"
+LITELLM_CONFIG=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -34,7 +34,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 mkdir -p "$OUTPUT_DIR"
+
+if [[ -z "$LITELLM_CONFIG" ]]; then
+    LITELLM_CONFIG="$OUTPUT_DIR/config.yaml"
+fi
+
 mkdir -p "$(dirname "$LITELLM_CONFIG")"
+
 MODELS_DIR="$ROOT/models"
 
 # Added variables

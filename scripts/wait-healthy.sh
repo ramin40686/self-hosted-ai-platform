@@ -1,16 +1,30 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+COMPOSE_DIR="docker"
+
 TIMEOUT="${TIMEOUT:-300}"
 INTERVAL="${INTERVAL:-5}"
 START_TIME=$(date +%s)
-
 QUIET=false
 
-if [[ "${1:-}" == "--quiet" ]]; then
-    QUIET=true
-    shift
-fi
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --compose-dir)
+            COMPOSE_DIR="$2"
+            shift 2
+            ;;
+        --quiet)
+            QUIET=true
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+
 
 if ! $QUIET; then
     echo "=============================================="
@@ -27,9 +41,10 @@ if (( $# > 0 )); then
 else
     mapfile -t CONTAINERS < <(
         docker compose \
-            -f docker/compose.inference.yml \
-            -f docker/compose.litellm.yml \
-            -f docker/compose.openwebui.yml \
+            --env-file "$COMPOSE_DIR/.env" \
+            -f "$COMPOSE_DIR/compose.inference.yml" \
+            -f "$COMPOSE_DIR/compose.litellm.yml" \
+            -f "$COMPOSE_DIR/compose.openwebui.yml" \
             config --services
     )
 fi

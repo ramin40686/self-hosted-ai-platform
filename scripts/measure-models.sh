@@ -17,6 +17,120 @@ TOTAL_OVERHEAD=0
 COUNT=0
 CONTAINERS=()
 
+MODEL_CONFIG="$PROJECT_DIR/config/enabled-models.conf"
+
+ENABLED_MODELS=()
+ENABLED_LINES=()
+
+#tmp
+TMP_DIR=""
+TMP_CONFIG=""
+
+# new function
+
+load_enabled_models() {
+
+    ENABLED_MODELS=()
+
+    local LINE_NO=0
+
+    while IFS= read -r LINE; do
+
+        ((++LINE_NO))
+
+        [[ -z "$LINE" || "$LINE" =~ ^# ]] && continue
+
+        local TYPE
+        local CFG_MODEL
+        local STATE
+        local PRIORITY
+        local TP
+        local DEVICE
+        local VRAM
+
+        IFS='|' read -r \
+            TYPE \
+            CFG_MODEL \
+            STATE \
+            PRIORITY \
+            TP \
+            DEVICE \
+            VRAM <<< "$LINE"
+
+        [[ "$STATE" != "on" ]] && continue
+
+        ENABLED_MODELS+=("${LINE_NO}|${CFG_MODEL}")
+
+    done < "$MODEL_CONFIG"
+}
+
+# new function build_temp_config
+build_temp_config() {
+
+    local ACTIVE_LINE="$1"
+    local ACTIVE_MODEL="$2"
+
+    local LINE_NO=0
+
+    TMP_CONFIG="$(mktemp)"
+    TMP_COMPOSE_DIR="$(mktemp -d)"
+    local FOUND=0
+
+    TMP_CONFIG="$(mktemp)"
+    TMP_COMPOSE_DIR="$(mktemp -d)"
+
+    while IFS= read -r LINE; do
+        ((++LINE_NO))
+
+        # comments / empty lines
+        if [[ -z "$LINE" || "$LINE" =~ ^# ]]; then
+            echo "$LINE" >> "$TMP_CONFIG"
+            continue
+        fi
+
+        local TYPE
+        local CFG_MODEL
+        local STATE
+        local PRIORITY
+        local TP
+        local DEVICE
+        local VRAM
+
+        IFS='|' read -r \
+            TYPE \
+            CFG_MODEL \
+            STATE \
+            PRIORITY \
+            TP \
+            DEVICE \
+            VRAM <<< "$LINE"
+
+        if (( LINE_NO == ACTIVE_LINE )); then
+            STATE="on"
+        else
+            STATE="off"
+        fi
+
+        printf "%s|%s|%s|%s|%s|%s|%s\n" \
+            "$TYPE" \
+            "$CFG_MODEL" \
+            "$STATE" \
+            "$PRIORITY" \
+            "$TP" \
+            "$DEVICE" \
+            "$VRAM" \
+            >> "$TMP_CONFIG"
+
+    done < "$MODEL_CONFIG"
+
+    echo
+    echo "=========================================="
+    echo "Temporary config for: $ACTIVE_MODEL"
+    echo "=========================================="
+    cat "$TMP_CONFIG"
+}
+
+
 print_header() {
     cat > "$OUTPUT_FILE" <<EOF
 # ==========================================================
@@ -296,16 +410,56 @@ print_summary() {
     echo "$REPORT_FILE"
 }
 
+# new function - cleanup_temp
+#cleanup_temp() {
+
+#    [[ -n "${TMP_CONFIG:-}" ]] && rm -f "$TMP_CONFIG"
+#    [[ -n "${TMP_COMPOSE_DIR:-}" ]] && rm -rf "$TMP_COMPOSE_DIR"
+
+#    unset TMP_CONFIG
+#    unset TMP_COMPOSE_DIR
+#}
+
 main() {
     print_header
-    find_containers
 
-    for CONTAINER in "${CONTAINERS[@]}"; do
-        measure_container "$CONTAINER"
+    load_enabled_models
+
+    echo "Loaded ${#ENABLED_MODELS[@]} models"
+
+    for ENTRY in "${ENABLED_MODELS[@]}"; do
+
+        IFS='|' read -r ACTIVE_LINE ACTIVE_MODEL <<< "$ENTRY"
+
+        build_temp_config "$ACTIVE_LINE" "$ACTIVE_MODEL"
+
+        echo
+        echo "Registering model..."
+        "$PROJECT_DIR/scripts/register-models.sh" \
+            --config "$TMP_CONFIG" \
+            --output-dir "$TMP_COMPOSE_DIR"
+
+        echo
+        echo "Starting platform..."
+        "$PROJECT_DIR/scripts/start-ai-platform.sh" \
+            --compose-dir "$TMP_COMPOSE_DIR"
+
+        echo
+        echo "Waiting for containers to become healthy..."
+        "$PROJECT_DIR/scripts/wait-healthy.sh" \
+            --compose-dir "$TMP_COMPOSE_DIR"
+
+        echo
+        echo "Generated files:"
+        find "$TMP_COMPOSE_DIR" -maxdepth 1 -type f | sort
+
+        # مراحل بعدی:
+        # find_containers
+        # measure_container
+        # stop-ai-platform.sh --compose-dir "$TMP_COMPOSE_DIR"
+        # cleanup_temp
+
     done
-
-    print_summary
 }
 
 main "$@"
-
