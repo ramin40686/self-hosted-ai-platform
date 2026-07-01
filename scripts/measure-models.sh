@@ -331,6 +331,10 @@ measure_container() {
     esac
        
     TP=$(extract_tp_from_logs "$CONTAINER")
+    
+    CONTEXT=${CONTEXT:-unknown}
+    DTYPE=${DTYPE:-unknown}
+    TP=${TP:-unknown}
 
     # Container uptime (previously called STARTUP)
     CREATED=$(docker inspect --format '{{.Created}}' "$CONTAINER")
@@ -356,14 +360,16 @@ measure_container() {
     printf "Scheduler Memory   : %s GB\n" "$SCHEDULER_MEMORY_GB"
     printf "Overhead           : %s GB\n" "$OVERHEAD"
     printf "Memory Factor      : %s\n" "$FACTOR"
-    printf "Context            : %s\n" "${CONTEXT:-unknown}"
-    printf "dtype              : %s\n" "${DTYPE:-unknown}"
-    printf "Tensor Parallel    : %s\n" "${TP:-unknown}"
+    printf "Context            : %s\n" "$CONTEXT"
+    printf "dtype              : %s\n" "$DTYPE"
+    printf "Tensor Parallel    : %s\n" "$TP"
     printf "Container Uptime   : %s sec\n" "$CONTAINER_UPTIME"
     printf "vLLM               : %s\n" "$VLLM"
+    printf "Driver             : %s\n" "$DRIVER"
+    printf "CUDA               : %s\n" "$CUDA"
     echo
 
-    # Append to OUTPUT_FILE via write_stats (scheduler_memory_gb is second column)
+    # Append to OUTPUT_FILE
     write_stats \
         "$MODEL" \
         "$SCHEDULER_MEMORY_GB" \
@@ -372,20 +378,20 @@ measure_container() {
         "$TOTAL_VRAM" \
         "$OVERHEAD" \
         "$FACTOR" \
-        "${CONTEXT:-}" \
-        "${DTYPE:-}" \
-        "${TP:-}" \
+        "$CONTEXT" \
+        "$DTYPE" \
+        "$TP" \
         "$CONTAINER_UPTIME" \
         "$VLLM" \
         "$DRIVER" \
         "$CUDA" \
         "$(date +%F)"
-
+        
     # Aggregate safely (use awk to sum floats)
     TOTAL_FACTOR=$(awk -v a="$TOTAL_FACTOR" -v b="$FACTOR" 'BEGIN{printf "%.6f", a+b}')
     TOTAL_OVERHEAD=$(awk -v a="$TOTAL_OVERHEAD" -v b="$OVERHEAD" 'BEGIN{printf "%.6f", a+b}')
 
-    ((COUNT++))
+    ((++COUNT))
 }
 
 print_summary() {
@@ -420,15 +426,41 @@ print_summary() {
 #    unset TMP_COMPOSE_DIR
 #}
 
+########################################################
+# Benchmark
+########################################################
+
+run_benchmark() {
+    echo
+    echo "=========================================="
+    echo "Running benchmark..."
+    echo "=========================================="
+
+    # TODO:
+
+}
+
+collect_results() {
+    echo
+    echo "=========================================="
+    echo "Collecting results..."
+    echo "=========================================="
+
+    find_containers
+    
+    for C in "${CONTAINERS[@]}"; do
+        measure_container "$C"
+    done
+
+}
+
 main() {
     print_header
 
     load_enabled_models
-
     echo "Loaded ${#ENABLED_MODELS[@]} models"
 
     for ENTRY in "${ENABLED_MODELS[@]}"; do
-
         IFS='|' read -r ACTIVE_LINE ACTIVE_MODEL <<< "$ENTRY"
 
         build_temp_config "$ACTIVE_LINE" "$ACTIVE_MODEL"
@@ -449,17 +481,21 @@ main() {
         "$PROJECT_DIR/scripts/wait-healthy.sh" \
             --compose-dir "$TMP_COMPOSE_DIR"
 
+        run_benchmark
+
+        collect_results
+
+        echo
+        echo "Stopping platform..."
+        "$PROJECT_DIR/scripts/stop-ai-platform.sh" \
+            --compose-dir "$TMP_COMPOSE_DIR"
+
         echo
         echo "Generated files:"
         find "$TMP_COMPOSE_DIR" -maxdepth 1 -type f | sort
-
-        # مراحل بعدی:
-        # find_containers
-        # measure_container
-        # stop-ai-platform.sh --compose-dir "$TMP_COMPOSE_DIR"
-        # cleanup_temp
-
     done
+
+    print_summary
 }
 
 main "$@"
